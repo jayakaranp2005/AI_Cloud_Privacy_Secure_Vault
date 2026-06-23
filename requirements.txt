@@ -1,3 +1,5 @@
 fastapi[standard]
 mysql-connector-python
-dotenv
+python-dotenv
+PyJWT
+bcrypt
