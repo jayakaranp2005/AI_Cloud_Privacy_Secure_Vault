@@ -3,3 +3,5 @@ mysql-connector-python
 python-dotenv
 PyJWT
 bcrypt
+azure-storage-blob
+PyMuPDF
