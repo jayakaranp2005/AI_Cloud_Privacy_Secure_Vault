@@ -18,9 +18,9 @@ import bcrypt
 import jwt
 from dotenv import load_dotenv
 from fastapi import APIRouter, HTTPException, Request, status
-from pydantic import BaseModel
 
 from db.connection import get_db
+from models.schemas import RegisterRequest, RegisterResponse, LoginRequest, LoginResponse
 
 load_dotenv()
 
@@ -30,19 +30,6 @@ JWT_ALG     = "HS256"
 
 router = APIRouter()
 
-
-# ---------------------------------------------------------------------------
-# Inline Pydantic models
-# NOTE: Move these to models/schemas.py once your friend creates that file.
-#       For now they live here so auth.py is self-contained.
-# ---------------------------------------------------------------------------
-class RegisterRequest(BaseModel):
-    email: str
-    password: str
-
-class LoginRequest(BaseModel):
-    email: str
-    password: str
 
 
 # ---------------------------------------------------------------------------
@@ -76,7 +63,7 @@ def verify_token(token: str) -> int:
 # ---------------------------------------------------------------------------
 # POST /auth/register
 # ---------------------------------------------------------------------------
-@router.post("/register", status_code=status.HTTP_201_CREATED)
+@router.post("/register", status_code=status.HTTP_201_CREATED, response_model=RegisterResponse)
 def register(body: RegisterRequest, request: Request):
     """
     Registration flow:
@@ -149,7 +136,7 @@ def register(body: RegisterRequest, request: Request):
 # ---------------------------------------------------------------------------
 # POST /auth/login
 # ---------------------------------------------------------------------------
-@router.post("/login")
+@router.post("/login", response_model=LoginResponse)
 def login(body: LoginRequest, request: Request):
     """
     Login flow:

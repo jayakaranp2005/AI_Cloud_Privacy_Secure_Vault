@@ -15,14 +15,12 @@ What gets ADDED in later phases by plugging into the stubs below:
 The route's structure won't change — only the stub sections get filled in.
 """
 
-import os
-from datetime import datetime
-
 import bcrypt
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from db.connection import get_db
+from models.schemas import UploadResponse
 from routes.auth import verify_token
 
 router   = APIRouter()
@@ -32,7 +30,7 @@ security = HTTPBearer()   # reads "Authorization: Bearer <token>" header
 # ---------------------------------------------------------------------------
 # POST /vault/upload
 # ---------------------------------------------------------------------------
-@router.post("/upload", status_code=status.HTTP_201_CREATED)
+@router.post("/upload", status_code=status.HTTP_201_CREATED, response_model=UploadResponse)
 async def upload(
     request:     Request,
     file:        UploadFile                    = File(...),

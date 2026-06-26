@@ -14,6 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from db.connection import init_pool, close_pool
+from services.blob import ensure_container_exists
 from routes.auth import router as auth_router
 from routes.upload import router as upload_router
 
@@ -34,6 +35,12 @@ async def lifespan(app: FastAPI):
     pool = init_pool()          # create the MySQL connection pool
     app.state.db_pool = pool    # attach it to app.state so routes can reach it
     print("[PrivaVault] MySQL pool ready.")
+    try:
+        ensure_container_exists()
+        print("[PrivaVault] Azure Blob Storage ready.")
+    except Exception as e:
+        print(f"[PrivaVault] WARNING: Azure Blob Storage not available: {e}")
+        print("[PrivaVault] Add AZURE_STORAGE_CONNECTION_STRING to .env to enable uploads.")
 
     yield  # <-- server is live and handling requests between these two points
 
