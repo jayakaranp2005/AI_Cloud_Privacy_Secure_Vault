@@ -1,18 +1,13 @@
 """
 PrivaVault — Upload route
-Phase 1-2 skeleton | branch: feature/auth-upload
+Phase 3-5 | branch: feature/ai_privacy_flow
 
-What this file does NOW (Phase 1-2):
-  - Double auth: JWT verify + BCrypt re-verify
-  - Read file bytes into RAM
-  - Write a stub record to the documents table
-  - Audit log
+Stream A is now ACTIVE:
+  extractor.py → anonymizer.py → gemini.py → summary + tags stored in DB
 
-What gets ADDED in later phases by plugging into the stubs below:
-  Phase 3-5  →  Stream A: extractor.py + anonymizer.py + gemini.py
-  Phase 6-7  →  Stream B: encryption.py + blob.py
-
-The route's structure won't change — only the stub sections get filled in.
+Stream B still stubbed (Phase 6-7):
+  encryption.py + blob.py not yet wired in
+  cloud_storage_url and encrypted_key_blob remain as PENDING placeholders
 """
 
 import bcrypt
@@ -22,9 +17,12 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from db.connection import get_db
 from models.schemas import UploadResponse
 from routes.auth import verify_token
+from services.extractor import extract_text, validate_pdf
+from services.anonymizer import anonymize
+from services.gemini import get_summary_and_tags
 
 router   = APIRouter()
-security = HTTPBearer()   # reads "Authorization: Bearer <token>" header
+security = HTTPBearer()
 
 
 # ---------------------------------------------------------------------------
@@ -33,33 +31,28 @@ security = HTTPBearer()   # reads "Authorization: Bearer <token>" header
 @router.post("/upload", status_code=status.HTTP_201_CREATED, response_model=UploadResponse)
 async def upload(
     request:     Request,
-    file:        UploadFile                    = File(...),
-    password:    str                           = Form(...),
-    credentials: HTTPAuthorizationCredentials  = Depends(security),
+    file:        UploadFile                   = File(...),
+    password:    str                          = Form(...),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
 ):
     """
     Three inputs required:
       - file      (multipart) — the document being stored
-      - password  (form field) — user's raw password for BCrypt re-verify + key derivation
+      - password  (form field) — raw password for BCrypt re-verify + key derivation
       - JWT       (Authorization header) — proves the session is valid
 
     Both auth checks must pass before any data is touched.
+    Stream A runs fully. Stream B is stubbed until Phase 6-7.
     """
 
     # -----------------------------------------------------------------------
-    # STEP 1 — JWT verification (extracts user_id from token)
+    # STEP 1 — JWT verification
     # -----------------------------------------------------------------------
     user_id = verify_token(credentials.credentials)
-    # If the token is expired or tampered, verify_token raises 401 here.
-    # We never reach Step 2 in that case.
 
     # -----------------------------------------------------------------------
-    # STEP 2 — BCrypt re-verification (confirms the password is also correct)
+    # STEP 2 — BCrypt re-verification
     # -----------------------------------------------------------------------
-    # Why verify BOTH? JWT alone proves "this session was valid when it was issued."
-    # BCrypt re-verify proves "the person making THIS request knows the password RIGHT NOW."
-    # This matters for key derivation — the password is needed to unwrap the Fernet key.
-    # An attacker with a stolen JWT token but not the password cannot decrypt anything.
     with get_db(request.app.state.db_pool) as conn:
         cursor = conn.cursor(dictionary=True)
         cursor.execute(
@@ -70,7 +63,10 @@ async def upload(
         cursor.close()
 
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found"
+        )
 
     if not bcrypt.checkpw(password.encode("utf-8"), user["password_hash"].encode("utf-8")):
         raise HTTPException(
@@ -78,43 +74,69 @@ async def upload(
             detail="Invalid password"
         )
 
-    pbkdf2_salt = user["pbkdf2_salt"]   # needed by Stream B for key wrapping
+    pbkdf2_salt = user["pbkdf2_salt"]
 
     # -----------------------------------------------------------------------
     # STEP 3 — Read file bytes into RAM
     # -----------------------------------------------------------------------
-    # Using bytearray (mutable) so we can explicitly zero the buffer later.
-    # Regular bytes objects are immutable — you can't overwrite them in place.
-    raw_bytes = bytearray(await file.read())
+    raw_bytes         = bytearray(await file.read())
     original_filename = file.filename
 
-    # -----------------------------------------------------------------------
-    # STREAM A — AI & Privacy (Phase 3-5)
-    # Uncomment and import services when feature/ai_privacy_flow is ready.
-    # -----------------------------------------------------------------------
-    ai_summary = None   # placeholder until Gemini integration is wired in
-    ai_tags    = []     # placeholder until Gemini integration is wired in
+    # Validate PDF before doing any heavy processing
+    # Fails fast with a clean 400 rather than a cryptic extraction error
+    if not validate_pdf(bytes(raw_bytes)):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or corrupted PDF file"
+        )
 
-    # --- Phase 3-5 block (uncomment when services exist) ---
-    # from services.extractor  import extract_text
-    # from services.anonymizer import anonymize
-    # from services.gemini     import get_summary_and_tags
+    # -----------------------------------------------------------------------
+    # STREAM A — AI & Privacy (Phase 3-5) — NOW ACTIVE
     #
-    # raw_text       = extract_text(bytes(raw_bytes))
-    # sanitized_text = anonymize(raw_text)
-    # gemini_result  = get_summary_and_tags(sanitized_text)
-    # ai_summary     = gemini_result["summary"]
-    # ai_tags        = gemini_result["tags"]
-    # del sanitized_text, raw_text   # wipe from RAM
+    # Boundary rule enforced here:
+    #   raw_text  → anonymizer  → sanitized_text  → gemini
+    #   Gemini NEVER receives raw_text directly.
+    # -----------------------------------------------------------------------
+    ai_summary = None
+    ai_tags    = []
+
+    try:
+        # 1. Extract raw text from PDF bytes
+        raw_text = extract_text(bytes(raw_bytes))
+
+        # 2. Detect + replace all PII with deterministic placeholders
+        anonymize_result = anonymize(raw_text)
+        sanitized_text   = anonymize_result["sanitized_text"]
+
+        # 3. Send ONLY sanitized text to Gemini — zero raw PII crosses this line
+        gemini_result = get_summary_and_tags(sanitized_text)
+        ai_summary    = gemini_result["summary"]
+        ai_tags       = gemini_result["tags"]
+
+        # Wipe text strings from RAM as soon as we're done with them
+        del sanitized_text, raw_text
+
+    except ValueError as e:
+        # PDF extraction failure — bad file, image-only scan, etc.
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Could not process document: {e}"
+        )
+    except Exception as e:
+        # Gemini API failure, Presidio crash, etc.
+        # We raise 503 rather than silently storing a record with no AI metadata
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"AI processing failed: {e}"
+        )
 
     # -----------------------------------------------------------------------
-    # STREAM B — Encryption & Blob Storage (Phase 6-7)
-    # Uncomment and import services when feature/encryption is ready.
+    # STREAM B — Encryption & Blob Storage (Phase 6-7) — STILL STUBBED
     # -----------------------------------------------------------------------
-    cloud_storage_url  = "PENDING"    # placeholder until blob.py is wired in
-    encrypted_key_blob = b"PENDING"   # placeholder until encryption.py is wired in
+    cloud_storage_url  = "PENDING"
+    encrypted_key_blob = b"PENDING"
 
-    # --- Phase 6-7 block (uncomment when services exist) ---
+    # --- Phase 6-7 block (uncomment when services/encryption.py + blob.py exist) ---
     # from services.encryption import encrypt_file
     # from services.blob       import upload_to_blob
     #
@@ -123,16 +145,17 @@ async def upload(
     #     password=password,
     #     pbkdf2_salt=pbkdf2_salt,
     # )
-    # cloud_storage_url = upload_to_blob(ciphertext, original_filename)
-    # del ciphertext   # wipe encrypted bytes from RAM after upload
+    # cloud_storage_url = upload_to_blob(ciphertext, original_filename, user_id)
+    # del ciphertext
 
     # -----------------------------------------------------------------------
-    # STEP 4 — Commit to database (atomic — rolls back if anything above failed)
+    # STEP 4 — Atomic DB commit
+    # Both streams must succeed before anything is written.
+    # get_db rolls back automatically if an exception escapes.
     # -----------------------------------------------------------------------
     with get_db(request.app.state.db_pool) as conn:
         cursor = conn.cursor()
 
-        # Insert into documents table
         cursor.execute(
             """
             INSERT INTO documents
@@ -146,19 +169,18 @@ async def upload(
                 cloud_storage_url,
                 ai_summary,
                 encrypted_key_blob,
-                "processing",          # flipped to 'ready' once both streams complete
+                "processing",   # flipped to 'ready' once Stream B is also live
             )
         )
         doc_id = cursor.lastrowid
 
-        # Insert AI tags — one row per tag (populated in Phase 3-5)
+        # One row per tag in document_tags
         for tag in ai_tags:
             cursor.execute(
                 "INSERT INTO document_tags (doc_id, tag_name) VALUES (%s, %s)",
                 (doc_id, tag)
             )
 
-        # Audit log
         cursor.execute(
             """
             INSERT INTO access_logs (user_id, doc_id, action, ip_address)
@@ -171,19 +193,15 @@ async def upload(
         cursor.close()
 
     # -----------------------------------------------------------------------
-    # STEP 5 — Wipe everything sensitive from RAM
+    # STEP 5 — RAM wipe
     # -----------------------------------------------------------------------
-    # Zero out the mutable bytearray before deleting it.
-    # This is defense-in-depth — Python's GC is non-deterministic, so we
-    # can't guarantee the memory is immediately reclaimed, but we can zero
-    # the buffer while we still hold a reference to it.
     for i in range(len(raw_bytes)):
         raw_bytes[i] = 0
     del raw_bytes, password, pbkdf2_salt, encrypted_key_blob
 
     return {
-        "message": "Upload successful",
-        "doc_id": doc_id,
+        "message":  "Upload successful",
+        "doc_id":   doc_id,
         "filename": original_filename,
-        "status": "processing",
+        "status":   "processing",
     }

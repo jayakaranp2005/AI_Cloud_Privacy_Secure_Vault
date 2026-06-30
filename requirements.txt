@@ -5,3 +5,10 @@ PyJWT
 bcrypt
 azure-storage-blob
 PyMuPDF
+presidio-analyzer presidio-anonymizer
+spacy
+google-generativeai
+python -m spacy download en_core_web_sm
+GEMINI_MODEL=gemini-2.5-flash-lite
+pytesseract
+pillow
