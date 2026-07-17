@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from db.connection import init_pool, close_pool
 from services.blob import ensure_container_exists
 from routes.auth import router as auth_router
+from routes.download import router as download_router
 from routes.upload import router as upload_router
 
 
@@ -83,6 +84,7 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 app.include_router(auth_router,   prefix="/auth",   tags=["Auth"])
 app.include_router(upload_router, prefix="/vault",  tags=["Vault"])
+app.include_router(download_router, prefix="/vault", tags=["Vault"])
 
 
 # ---------------------------------------------------------------------------

@@ -1,13 +1,10 @@
 """
 PrivaVault — Upload route
-Phase 3-5 | branch: feature/ai_privacy_flow
+Phase 6-7 | branch: feature/encryption
 
-Stream A is now ACTIVE:
-  extractor.py → anonymizer.py → gemini.py → summary + tags stored in DB
-
-Stream B still stubbed (Phase 6-7):
-  encryption.py + blob.py not yet wired in
-  cloud_storage_url and encrypted_key_blob remain as PENDING placeholders
+Stream A is active and Stream B is now active:
+    extractor.py → anonymizer.py → gemini.py → summary + tags stored in DB
+    encryption.py + blob.py → ciphertext + wrapped key stored in DB/blob
 """
 
 import bcrypt  # pyrefly: ignore [missing-import]
@@ -17,6 +14,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer  # pyrefly
 from db.connection import get_db
 from models.schemas import UploadResponse
 from routes.auth import verify_token
+from services.blob import upload_to_blob
+from services.encryption import encrypt_file
 from services.extractor import extract_text, validate_pdf
 from services.anonymizer import anonymize
 from services.gemini import get_summary_and_tags
@@ -131,22 +130,21 @@ async def upload(
         )
 
     # -----------------------------------------------------------------------
-    # STREAM B — Encryption & Blob Storage (Phase 6-7) — STILL STUBBED
+    # STREAM B — Encryption & Blob Storage (Phase 6-7) — ACTIVE
     # -----------------------------------------------------------------------
-    cloud_storage_url  = "PENDING"
-    encrypted_key_blob = b"PENDING"
-
-    # --- Phase 6-7 block (uncomment when services/encryption.py + blob.py exist) ---
-    # from services.encryption import encrypt_file
-    # from services.blob       import upload_to_blob
-    #
-    # ciphertext, encrypted_key_blob = encrypt_file(
-    #     file_bytes=bytes(raw_bytes),
-    #     password=password,
-    #     pbkdf2_salt=pbkdf2_salt,
-    # )
-    # cloud_storage_url = upload_to_blob(ciphertext, original_filename, user_id)
-    # del ciphertext
+    try:
+        ciphertext, encrypted_key_blob = encrypt_file(
+            file_bytes=bytes(raw_bytes),
+            password=password,
+            pbkdf2_salt=pbkdf2_salt,
+        )
+        cloud_storage_url = upload_to_blob(ciphertext, original_filename, user_id)
+        del ciphertext
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Encryption or blob upload failed: {e}"
+        )
 
     # -----------------------------------------------------------------------
     # STEP 4 — Atomic DB commit
