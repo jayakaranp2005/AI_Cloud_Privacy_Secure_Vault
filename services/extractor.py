@@ -26,6 +26,7 @@ Position in Stream A:
 import io
 import os
 
+# pyrefly: ignore [missing-import]
 import fitz  # PyMuPDF
 
 
@@ -35,10 +36,10 @@ import fitz  # PyMuPDF
 # App starts fine without pytesseract/Pillow installed.
 # Text-based PDFs work normally. Image-only PDFs get a clear error message
 # telling the user what to install — no cryptic ImportError crash.
-
+ 
 try:
-    import pytesseract
-    from PIL import Image
+    import pytesseract  # pyrefly: ignore [missing-import]
+    from PIL import Image  # pyrefly: ignore [missing-import]
 
     # Windows: Tesseract binary not on PATH by default.
     # Set TESSERACT_PATH in .env → used locally on Windows.

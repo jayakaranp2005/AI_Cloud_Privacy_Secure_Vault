@@ -16,6 +16,10 @@ import os
 import uuid
 from datetime import datetime, timedelta
 
+# pyrefly: ignore [missing-import]
+from azure.core.exceptions import ResourceNotFoundError
+
+# pyrefly: ignore [missing-import]
 from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions
 from dotenv import load_dotenv
 
@@ -49,20 +53,18 @@ def ensure_container_exists():
     
     Should be called once at app startup (in main.py lifespan).
     """
+    client = get_blob_client()
+    container_client = client.get_container_client(AZURE_CONTAINER_NAME)
     try:
-        client = get_blob_client()
-        container_client = client.get_container_client(AZURE_CONTAINER_NAME)
-        
-        # This raises an exception if the container doesn't exist
+        # This raises ResourceNotFoundError if the container doesn't exist
         container_client.get_container_properties()
         print(f"[PrivaVault] Blob container '{AZURE_CONTAINER_NAME}' exists.")
-    except Exception as e:
+    except ResourceNotFoundError:
         # Container doesn't exist — create it
         print(f"[PrivaVault] Creating blob container '{AZURE_CONTAINER_NAME}'...")
         try:
-            client = get_blob_client()
             client.create_container(name=AZURE_CONTAINER_NAME)
-            print(f"[PrivaVault] Blob container created successfully.")
+            print(f"[PrivaVault] Blob container '{AZURE_CONTAINER_NAME}' created successfully.")
         except Exception as create_error:
             print(f"[PrivaVault] ERROR creating container: {create_error}")
             raise
@@ -229,5 +231,3 @@ def generate_sas_url(blob_url: str, expiry_hours: int = 1) -> str:
         print(f"[PrivaVault] ERROR generating SAS URL: {e}")
         raise
 
-
-print("[PrivaVault] Blob Storage service initialized.")

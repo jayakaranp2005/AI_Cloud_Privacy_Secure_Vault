@@ -18,8 +18,8 @@ Why a pool and not one connection per request?
 import os
 from contextlib import contextmanager
 
-import mysql.connector
-from mysql.connector import pooling
+import mysql.connector  # pyrefly: ignore [missing-import]
+from mysql.connector import pooling  # pyrefly: ignore [missing-import]
 from dotenv import load_dotenv  
 
 # Load .env so credentials are available as environment variables.
@@ -51,6 +51,7 @@ def init_pool() -> pooling.MySQLConnectionPool:
         charset="utf8mb4",         # full Unicode — handles Devanagari, emoji, etc.
         collation="utf8mb4_unicode_ci",
     )
+    print("[PrivaVault] MySQL connection pool ready.")
     return pool
 
 
@@ -116,6 +117,3 @@ def get_db(pool: pooling.MySQLConnectionPool):
         raise            # re-raise so FastAPI still returns the right HTTP error
     finally:
         conn.close()     # does NOT destroy the connection — returns it to the pool
-
-
-print("[PrivaVault] MySQL connection pool initialized.")

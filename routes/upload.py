@@ -10,9 +10,9 @@ Stream B still stubbed (Phase 6-7):
   cloud_storage_url and encrypted_key_blob remain as PENDING placeholders
 """
 
-import bcrypt
+import bcrypt  # pyrefly: ignore [missing-import]
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer  # pyrefly: ignore [missing-import]
 
 from db.connection import get_db
 from models.schemas import UploadResponse
@@ -114,7 +114,7 @@ async def upload(
         ai_tags       = gemini_result["tags"]
 
         # Wipe text strings from RAM as soon as we're done with them
-        del sanitized_text, raw_text
+        del sanitized_text, raw_text, anonymize_result
 
     except ValueError as e:
         # PDF extraction failure — bad file, image-only scan, etc.

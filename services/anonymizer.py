@@ -25,7 +25,9 @@ Why deterministic mapping?
 import re
 from typing import Optional
 
+# pyrefly: ignore [missing-import]
 from presidio_analyzer import AnalyzerEngine, PatternRecognizer, Pattern
+# pyrefly: ignore [missing-import]
 from presidio_analyzer.nlp_engine import NlpEngineProvider
 
 

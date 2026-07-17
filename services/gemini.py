@@ -240,6 +240,10 @@ def get_summary_and_tags(sanitized_text: str) -> dict:
             )
             return result
 
+        except ValueError:
+            # Parse error from _extract_json — Gemini returned malformed JSON.
+            # Retrying won't help (it's not a transient error). Fail immediately.
+            raise
         except Exception as e:
             last_error = e
             print(f"[PrivaVault] Gemini attempt {attempt} failed: {e}")
