@@ -11,3 +11,4 @@ spacy
 google-generativeai
 pytesseract
 pillow
+cryptography
