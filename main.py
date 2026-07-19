@@ -1,16 +1,16 @@
 """
+
 PrivaVault — FastAPI entry point
-Phase 1-2 | branch: feature/auth-upload
+Phase 6-7 | branch: feature/encryption
 
 Responsibilities:
   - Boot the MySQL connection pool on startup, tear it down on shutdown
-  - Register route modules (auth, upload)
-  - Add CORS middleware so a browser frontend can hit the API
-  - Expose a /health endpoint for quick smoke-tests
+  - Register route modules (auth, upload, download)
 """
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+# pyrefly: ignore [missing-import]
 from fastapi.middleware.cors import CORSMiddleware
 
 from db.connection import init_pool, close_pool

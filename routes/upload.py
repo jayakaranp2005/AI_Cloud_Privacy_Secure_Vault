@@ -167,7 +167,7 @@ async def upload(
                 cloud_storage_url,
                 ai_summary,
                 encrypted_key_blob,
-                "processing",   # flipped to 'ready' once Stream B is also live
+                "ready",   # flipped to 'ready' once Stream B is also live
             )
         )
         doc_id = cursor.lastrowid
@@ -201,5 +201,5 @@ async def upload(
         "message":  "Upload successful",
         "doc_id":   doc_id,
         "filename": original_filename,
-        "status":   "processing",
+        "status":   "ready",
     }
