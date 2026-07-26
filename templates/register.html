@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Register — PrivaVault{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <svg class="auth-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="8.5" cy="7" r="4"/>
+                <line x1="20" y1="8" x2="20" y2="14"/>
+                <line x1="23" y1="11" x2="17" y2="11"/>
+            </svg>
+            <h1>Create Account</h1>
+            <p class="auth-subtitle">Start securing your documents with zero-knowledge encryption</p>
+        </div>
+
+        <div id="register-error" class="alert alert-error" style="display:none;"></div>
+        <div id="register-success" class="alert alert-success" style="display:none;"></div>
+
+        <form id="register-form" class="auth-form">
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" name="email" required
+                       placeholder="you@example.com" autocomplete="email">
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required
+                       minlength="8" placeholder="Minimum 8 characters" autocomplete="new-password">
+            </div>
+            <div class="form-group">
+                <label for="confirm-password">Confirm Password</label>
+                <input type="password" id="confirm-password" name="confirm-password" required
+                       minlength="8" placeholder="Re-enter your password" autocomplete="new-password">
+            </div>
+            <button type="submit" class="btn btn-primary btn-full" id="register-btn">
+                Create Account
+            </button>
+        </form>
+
+        <p class="auth-footer">
+            Already have an account? <a href="/login">Sign in</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Upload — PrivaVault{% endblock %}
+
+{% block nav_items %}
+<a href="/dashboard" class="btn btn-ghost">Back to Dashboard</a>
+{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card upload-card">
+        <div class="auth-header">
+            <svg class="auth-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <h1>Upload Document</h1>
+            <p class="auth-subtitle">Your file is encrypted end-to-end with zero-knowledge security</p>
+        </div>
+
+        <div id="upload-error" class="alert alert-error" style="display:none;"></div>
+
+        <form id="upload-form" class="auth-form" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="file">PDF Document</label>
+                <div class="file-input-wrapper" id="file-drop-zone">
+                    <input type="file" id="file" name="file" accept=".pdf" required>
+                    <div class="file-input-label" id="file-label">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="file-icon">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                        <span>Choose a PDF file or drag it here</span>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="password">Re-enter Password</label>
+                <p class="form-hint">Required for encryption — your password is never stored</p>
+                <input type="password" id="password" name="password" required
+                       placeholder="Enter your account password" autocomplete="new-password">
+            </div>
+            <button type="submit" class="btn btn-primary btn-full" id="upload-btn">
+                <span class="btn-text">Encrypt &amp; Upload</span>
+                <span class="btn-loading" style="display:none;">
+                    <span class="spinner"></span>
+                    Processing...
+                </span>
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

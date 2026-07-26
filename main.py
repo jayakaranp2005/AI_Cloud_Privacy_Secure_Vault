@@ -12,12 +12,17 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 # pyrefly: ignore [missing-import]
 from fastapi.middleware.cors import CORSMiddleware
+# pyrefly: ignore [missing-import]
+from fastapi.staticfiles import StaticFiles
+# pyrefly: ignore [missing-import]
+from fastapi.responses import RedirectResponse
 
 from db.connection import init_pool, close_pool
 from services.blob import ensure_container_exists
 from routes.auth import router as auth_router
 from routes.download import router as download_router
 from routes.upload import router as upload_router
+from routes.pages import router as pages_router
 
 
 # ---------------------------------------------------------------------------
@@ -80,11 +85,26 @@ app.add_middleware(
 
 
 # ---------------------------------------------------------------------------
+# Static files
+# ---------------------------------------------------------------------------
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+# ---------------------------------------------------------------------------
 # Routers
 # ---------------------------------------------------------------------------
 app.include_router(auth_router,   prefix="/auth",   tags=["Auth"])
 app.include_router(upload_router, prefix="/vault",  tags=["Vault"])
 app.include_router(download_router, prefix="/vault", tags=["Vault"])
+app.include_router(pages_router, tags=["Pages"])
+
+
+# ---------------------------------------------------------------------------
+# Root redirect — send visitors to login
+# ---------------------------------------------------------------------------
+@app.get("/", include_in_schema=False)
+def root():
+    return RedirectResponse(url="/login")
 
 
 # ---------------------------------------------------------------------------

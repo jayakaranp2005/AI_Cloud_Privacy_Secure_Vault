@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — PrivaVault{% endblock %}
+
+{% block nav_items %}
+<span class="nav-user">{{ user_email }}</span>
+<form action="/auth/logout" method="post" class="nav-logout-form">
+    <button type="submit" class="btn btn-ghost" id="logout-btn">Logout</button>
+</form>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <div class="dashboard-header">
+        <div class="dashboard-title">
+            <h1>Your Documents</h1>
+            <p class="dashboard-count">{{ documents|length }} document{{ 's' if documents|length != 1 else '' }}</p>
+        </div>
+        <a href="/upload" class="btn btn-primary" id="upload-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            Upload
+        </a>
+    </div>
+
+    {% if all_tags %}
+    <div class="tag-panel" id="tag-panel">
+        <div class="tag-panel-search">
+            <svg class="tag-panel-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="tag-search-input" placeholder="Search tags..." autocomplete="off">
+        </div>
+        <div class="tag-panel-chips" id="tag-chips">
+            {% for tag in all_tags %}
+            <button type="button"
+                    class="tag-pill{% if tag in selected_tags %} active{% endif %}"
+                    data-tag="{{ tag }}">{{ tag }}</button>
+            {% endfor %}
+        </div>
+        {% if selected_tags %}
+        <div class="tag-panel-footer">
+            <a href="/dashboard" class="tag-reset" id="tag-reset">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tag-reset-icon">
+                    <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                </svg>
+                Reset
+            </a>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if documents %}
+    <div class="doc-grid">
+        {% for doc in documents %}
+        <div class="doc-card" id="doc-{{ doc.doc_id }}">
+            <div class="doc-card-header">
+                <svg class="doc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                </svg>
+                <h3 class="doc-filename">{{ doc.original_filename }}</h3>
+            </div>
+            {% if doc.ai_summary %}
+            <p class="doc-summary">{{ doc.ai_summary }}</p>
+            {% endif %}
+            {% if doc.tags %}
+            <div class="doc-tags">
+                {% for tag in doc.tags %}
+                <span class="tag">{{ tag }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <div class="doc-actions">
+                <button type="button" class="btn btn-download" data-doc-id="{{ doc.doc_id }}"
+                        data-filename="{{ doc.original_filename }}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Download
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="12" y1="11" x2="12" y2="17"/>
+            <line x1="9" y1="14" x2="15" y2="14"/>
+        </svg>
+        <h2>No documents uploaded yet</h2>
+        <p>Your secure vault is empty. Upload your first document to get started.</p>
+        <a href="/upload" class="btn btn-primary">Upload Document</a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Download modal -->
+<div class="modal-overlay" id="download-modal" style="display:none;">
+    <div class="modal-card">
+        <h2>Enter Password to Download</h2>
+        <p class="modal-filename" id="modal-filename"></p>
+        <div id="download-error" class="alert alert-error" style="display:none;"></div>
+        <form id="download-form">
+            <input type="hidden" id="download-doc-id">
+            <div class="form-group">
+                <label for="download-password">Password</label>
+                <input type="password" id="download-password" required
+                       placeholder="Re-enter your account password" autocomplete="new-password">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-ghost" id="download-cancel">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="download-submit-btn">
+                    <span class="btn-text">Download</span>
+                    <span class="btn-loading" style="display:none;">
+                        <span class="spinner"></span>
+                        Decrypting...
+                    </span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

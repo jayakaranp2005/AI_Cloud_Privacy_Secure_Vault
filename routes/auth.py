@@ -17,7 +17,8 @@ from datetime import datetime, timedelta, timezone
 import bcrypt
 import jwt
 from dotenv import load_dotenv
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from db.connection import get_db
 from models.schemas import RegisterRequest, RegisterResponse, LoginRequest, LoginResponse
@@ -144,7 +145,7 @@ def login(body: LoginRequest, request: Request):
       2. BCrypt verify password against stored hash
       3. Issue JWT (payload: user_id + expiry ONLY)
       4. Log LOGIN action
-      5. Return token
+      5. Return token as JSON AND set httpOnly cookie
 
     We always return the same 401 message whether the email doesn't exist
     or the password is wrong — this prevents user enumeration attacks
@@ -198,4 +199,31 @@ def login(body: LoginRequest, request: Request):
         conn.commit()
         cursor.close()
 
-    return {"access_token": token, "token_type": "bearer"}
+    # Return token in JSON body AND set httpOnly cookie
+    # JSON body → for API consumers (Postman, mobile apps)
+    # Cookie   → for browser frontend (never exposed to JS)
+    response = JSONResponse(
+        content={"access_token": token, "token_type": "bearer"}
+    )
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,
+        samesite="lax",
+        secure=False,       # Set True in production behind HTTPS/Caddy
+        max_age=JWT_EXPIRY * 3600,
+    )
+    return response
+
+
+# ---------------------------------------------------------------------------
+# POST /auth/logout
+# ---------------------------------------------------------------------------
+@router.post("/logout")
+def logout():
+    """
+    Clears the access_token cookie and redirects to /login.
+    """
+    response = RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
+    response.delete_cookie(key="access_token")
+    return response

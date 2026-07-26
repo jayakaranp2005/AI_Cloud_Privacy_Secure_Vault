@@ -23,6 +23,7 @@ import io
 # pyrefly: ignore [missing-import]
 import bcrypt
 from cryptography.fernet import Fernet, InvalidToken
+from typing import Optional
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 # pyrefly: ignore [missing-import]
 from fastapi.responses import StreamingResponse
@@ -35,7 +36,7 @@ from services.blob import download_from_blob
 from services.encryption import unwrap_file_key
 
 router   = APIRouter()
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 # ---------------------------------------------------------------------------
@@ -46,7 +47,7 @@ def download_document(
     doc_id:      int,
     request:     Request,
     password:    str                          = Form(...),
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
 ):
     """
     Downloads an encrypted document after verifying identity and ownership.
@@ -65,9 +66,19 @@ def download_document(
     """
 
     # -----------------------------------------------------------------------
-    # STEP 1 — JWT verification
+    # STEP 1 — JWT verification (header or cookie fallback)
     # -----------------------------------------------------------------------
-    user_id = verify_token(credentials.credentials)
+    token = None
+    if credentials and credentials.credentials:
+        token = credentials.credentials
+    elif request.cookies.get("access_token"):
+        token = request.cookies["access_token"]
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated"
+        )
+    user_id = verify_token(token)
 
     # -----------------------------------------------------------------------
     # STEP 2 — Fetch user + document in one DB trip

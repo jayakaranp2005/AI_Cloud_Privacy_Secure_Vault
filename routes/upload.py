@@ -8,6 +8,7 @@ Stream A is active and Stream B is now active:
 """
 
 import bcrypt  # pyrefly: ignore [missing-import]
+from typing import Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer  # pyrefly: ignore [missing-import]
 
@@ -21,7 +22,7 @@ from services.anonymizer import anonymize
 from services.gemini import get_summary_and_tags
 
 router   = APIRouter()
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 # ---------------------------------------------------------------------------
@@ -32,22 +33,32 @@ async def upload(
     request:     Request,
     file:        UploadFile                   = File(...),
     password:    str                          = Form(...),
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
 ):
     """
     Three inputs required:
       - file      (multipart) — the document being stored
       - password  (form field) — raw password for BCrypt re-verify + key derivation
-      - JWT       (Authorization header) — proves the session is valid
+      - JWT       (Authorization header OR httpOnly cookie) — proves the session is valid
 
     Both auth checks must pass before any data is touched.
     Stream A runs fully. Stream B is stubbed until Phase 6-7.
     """
 
     # -----------------------------------------------------------------------
-    # STEP 1 — JWT verification
+    # STEP 1 — JWT verification (header or cookie fallback)
     # -----------------------------------------------------------------------
-    user_id = verify_token(credentials.credentials)
+    token = None
+    if credentials and credentials.credentials:
+        token = credentials.credentials
+    elif request.cookies.get("access_token"):
+        token = request.cookies["access_token"]
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated"
+        )
+    user_id = verify_token(token)
 
     # -----------------------------------------------------------------------
     # STEP 2 — BCrypt re-verification
